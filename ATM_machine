@@ -31,3 +31,4 @@ class User(object):
     
     def add_cash(self, money):
         self.balance = self.balance + money
+        return self.has+str(self.balance)+'.'
