@@ -52,20 +52,23 @@ def get_car_list(csv_filename):
                 cartype = row[0]
             except IndexError: 
                 continue
-            if cartype=='car':
+                
+            if cartype == 'car':
                 try:
-                    ex=Car(row[1],row[3],row[5],row[2])
+                    car_list.append(Car(row[1],row[3],row[5],row[2]))
                 except IndexError: 
                     continue
-            if cartype=='truck':
+                    
+            if cartype == 'truck':
                 try:
-                    ex=Truck(row[1],row[3],row[5],row[4])
+                    car_list.append(Truck(row[1],row[3],row[5],row[4]))
                 except IndexError: 
                     continue
-            if cartype=='spec_machine':
+                    
+            if cartype == 'spec_machine':
                 try:
-                    ex=SpecMachine(row[1],row[3],row[5],row[6])
+                    car_list.append(SpecMachine(row[1],row[3],row[5],row[6]))
                 except IndexError:
                     continue
-            car_list.append(ex)
+            
     return car_list
