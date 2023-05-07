@@ -59,7 +59,7 @@ class File():
 
     def __iter__(self):
         with open(self.filepath) as f:
-            lines = f.readlines()
+            self.lines = f.readlines()
         self.line_index = 0
         return self
     
