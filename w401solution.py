@@ -20,14 +20,6 @@
 
 import os.path
 import tempfile
-# from solution import File
-# path_to_file = 'some_filename'
-# os.path.exists(path_to_file)
-# False
-
-#file_obj = File(path_to_file)
-#os.path.exists(path_to_file)
-# True
 
 class File():
 
@@ -37,6 +29,7 @@ class File():
             file = open(filepath, 'x')
         except Exception:
             pass
+        
 
     def path_validation():
         "Если путь к файлу неправильный"
@@ -52,21 +45,31 @@ class File():
         """сложение объектов типа File, результатом сложения 
         является объект класса File, при этом создается новый 
         файл и файловый объект, в котором содержимое второго файла 
-        добавляется к содержимому первого файла. Новый файл должен 
-        создаваться в директории, полученной с помощью функции 
-        tempfile.gettempdir. Для получения нового пути можно 
-        использовать os.path.join."""
+        добавляется к содержимому первого файла"""
+
         temp_dir = tempfile.gettempdir()
         temp_file_name = next(tempfile._get_candidate_names())
         temp_file_path = os.path.join(temp_dir, temp_file_name)
         
         new_obj = File(temp_file_path)
-
         added_text = self.read() + obj.read()
-        
         new_obj.write(added_text)
         
         return new_obj 
+
+    def __iter__(self):
+        with open(self.filepath) as f:
+            lines = f.readlines()
+        self.line_index = 0
+        return self
+    
+    def __next__(self):
+        if self.line_index < len(self.lines):
+            line = self.lines[self.line_index]
+            self.line_index += 1
+        else:
+            raise StopIteration
+        return line
 
     def read(self):
         """чтение из файла, метод read возвращает строку 
