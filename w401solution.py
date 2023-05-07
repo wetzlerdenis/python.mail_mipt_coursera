@@ -57,9 +57,10 @@ class File():
         with open(self.filepath, 'r') as f:
             return f.read()
 
-    def write(new_text):
+    def write(self, new_text):
         # 2) запись в файл, метод write принимает в качестве 
         # аргумента строку с новым содержанием файла
-        pass
+        with open(self.filepath, 'w') as f:
+            return f.write(new_text)
 
     
