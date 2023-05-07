@@ -28,8 +28,6 @@ import os.path
 #os.path.exists(path_to_file)
 # True
 
-#file_obj.read()
-#''
 class File():
     
     def __init__(self, filepath):
@@ -46,7 +44,7 @@ class File():
     def __str__(self):
         # 4) возвращать в качестве строкового представления 
         # объекта класса File полный путь до файла
-        pass
+        return os.path.abspath(self.filepath)
 
     def __add__ (self, obj):
         pass
