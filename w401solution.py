@@ -19,6 +19,7 @@
 #Пример работы:
 
 import os.path
+import tempfile
 # from solution import File
 # path_to_file = 'some_filename'
 # os.path.exists(path_to_file)
@@ -29,7 +30,7 @@ import os.path
 # True
 
 class File():
-    
+
     def __init__(self, filepath):
         self.filepath = filepath
         try: 
@@ -42,22 +43,42 @@ class File():
         pass
 
     def __str__(self):
-        # 4) возвращать в качестве строкового представления 
-        # объекта класса File полный путь до файла
+        """возвращать в качестве строкового представления 
+        объекта класса File полный путь до файла"""
+        
         return os.path.abspath(self.filepath)
 
     def __add__ (self, obj):
-        pass
+        """сложение объектов типа File, результатом сложения 
+        является объект класса File, при этом создается новый 
+        файл и файловый объект, в котором содержимое второго файла 
+        добавляется к содержимому первого файла. Новый файл должен 
+        создаваться в директории, полученной с помощью функции 
+        tempfile.gettempdir. Для получения нового пути можно 
+        использовать os.path.join."""
+        temp_dir = tempfile.gettempdir()
+        temp_file_name = next(tempfile._get_candidate_names())
+        temp_file_path = os.path.join(temp_dir, temp_file_name)
+        
+        new_obj = File(temp_file_path)
+
+        added_text = self.read() + obj.read()
+        
+        new_obj.write(added_text)
+        
+        return new_obj 
 
     def read(self):
-        # 1) чтение из файла, метод read возвращает строку 
-        # с текущим содержанием файла
+        """чтение из файла, метод read возвращает строку 
+         с текущим содержанием файла"""
+        
         with open(self.filepath, 'r') as f:
             return f.read()
 
     def write(self, new_text):
-        # 2) запись в файл, метод write принимает в качестве 
-        # аргумента строку с новым содержанием файла
+        """запись в файл, метод write принимает в качестве 
+        # аргумента строку с новым содержанием файла"""
+
         with open(self.filepath, 'w') as f:
             return f.write(new_text)
 
