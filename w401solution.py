@@ -39,6 +39,10 @@ class File():
         except Exception:
             pass
 
+    def path_validation():
+        "Если путь к файлу неправильный"
+        pass
+
     def __str__(self):
         # 4) возвращать в качестве строкового представления 
         # объекта класса File полный путь до файла
@@ -47,10 +51,11 @@ class File():
     def __add__ (self, obj):
         pass
 
-    def read():
+    def read(self):
         # 1) чтение из файла, метод read возвращает строку 
         # с текущим содержанием файла
-        pass
+        with open(self.filepath, 'r') as f:
+            return f.read()
 
     def write(new_text):
         # 2) запись в файл, метод write принимает в качестве 
