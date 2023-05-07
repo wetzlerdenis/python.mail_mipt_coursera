@@ -20,29 +20,23 @@
 
 import os.path
 # from solution import File
-path_to_file = 'some_filename'
-os.path.exists(path_to_file)
+# path_to_file = 'some_filename'
+# os.path.exists(path_to_file)
 # False
 
-file_obj = File(path_to_file)
-os.path.exists(path_to_file)
+#file_obj = File(path_to_file)
+#os.path.exists(path_to_file)
 # True
 
-file_obj.read()
+#file_obj.read()
 #''
-
-os.path.abspath()
 class File():
     
     def __init__(self, filepath):
-        # При создании экземпляра класса File в конструктор 
-        # передается полный путь до файла на файловой системе. 
-        # Если файла с таким путем не существует, он должен 
-        # быть создан при инициализации.
-
-        if os.path.exists(filepath):
-            self.filepath = filepath
-        else:
+        self.filepath = filepath
+        try: 
+            file = open(filepath, 'x')
+        except Exception:
             pass
 
     def __str__(self):
