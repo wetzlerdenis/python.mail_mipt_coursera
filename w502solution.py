@@ -2,47 +2,126 @@
 #Task 1 Client for work with metrics
 
 """Реализация клиента.
-Необходимо реализовать класс Client, в котором будет инкапсулировано 
-соединение с сервером, клиентский сокет и методы для получения (get) 
-и отправки (put) метрик на сервер. 
+Необходимо реализовать класс Client, в котором будет инкапсулировано соединение 
+с сервером, клиентский сокет и методы для получения (get) и отправки (put) метрик на сервер. 
 
-# В конструктор класса Client должна передаваться адресная пара хост 
-# и порт, а также необязательный аргумент timeout (имеющий значение по 
-#умолчанию - None). Соединение с сервером устанавливается при создании 
-#экземпляра класса Client и не должно разрываться между запросами. 
+В конструктор класса Client должна передаваться адресная пара хост и порт, 
+а также необязательный аргумент timeout (по умолчанию - None). 
+Соединение с сервером устанавливается при создании экземпляра класса Client 
+и не должно разрываться между запросами:
+client = Client("127.0.0.1", 8888, timeout=15)
 
-Итак, в качестве решения вам необходимо предоставить модуль с реализованным 
-в нем классом Client, пользовательским исключением ClientError. 
+Необходимо предоставить модуль с реализованным классом Client, пользовательским 
+исключением ClientError. 
 
-В классе Client должны быть доступны методы get и put с описанной выше 
-сигнатурой. При вызове методов get и put клиент должен 
-- посылать сообщения в TCP-соединение с сервером (в соответствии с 
-    описанным текстовым протоколом), 
-- получать ответ от сервера и возвращать словарь с данными
+При вызове методов get и put клиент должен 
+- посылать сообщения в TCP-соединение с сервером
+- получать ответ от сервера и 
+- возвращать словарь с данными
 
-Примечание.
-Не смотря на то, что на этой неделе вы изучали асинхронность, 
-клиент должен быть синхронным
+Клиент должен быть синхронным
+
+Протокол Клиент посылает Серверу 2 вида запросов:
+- отправка данных для сохранения их на сервере
+- получения сохраненных данных
+
+Client          -->     Server
+
+get <metric>\n  -->     Server
+put <data>\n    -->     Server
+Client          <--     ok\n<response>\n\n
+Client          <--     error\n<response>\n\n
+
+Examples:
+
+get palm.cpu\n  -->     Server
+Client          <--     ok\npalm.cpu 2.0 1150\npalm.cpu 0.5 1150\n\n
+
+get *\n         -->     Server
+Client          <--     ok\npalm.cpu 2.0 1150\npalm.cpu 0.5 1150\neardrum.cpu 3.0 1150\n\n
+
+get <unknown metric>        -->     Server
+Client                      <--     ok\n\n
+
+get нарушен формат запроса  -->     Server
+Client                      <--     error\nwrong command\n\n
+
+get ошибочная команда       -->     Server
+Client                      <--     error\nwrong command\n\n
+
+print(client.get("*"))
+
+Метод put принимает в качестве параметров: 
+    - название метрики, 
+    - численное значение 
+    - необязательный параметр timestamp
+
+Если метод put вызван без timestamp, то клиент должен подставить временную отметку, 
+полученную с помощью вызова int(time.time())
+
+put palm.cpu 23.7 1150\n    -->     Server
+Client                      <--     ok\n\n
+
+put palm.cpu 23.7\n         -->     Server
+Client                      <--     ok\n\n
+
+put <value> и <timestamp> не преобразуются к float и int
+Client                      <--     error\nwrong command\n\n
+
+Метод put не возвращает ничего в случае успешной отправки и выбрасывает 
+пользовательское исключение ClientError в случае не успешной.
+
 """
 import socket
+import time
+
+class ClientError(Exception):
+    pass
 
 class Client():
-    #todo timeout должен быть необязательный
-    def __init__(self, address, port, timeout):
+    def __init__(self, address, port, timeout=None):
         """
         Example: client = Client("127.0.0.1", 8888, timeout=15)
         """
         self.address = address
         self.port = port
-        self.sock = socket.create_connection((address, port))
+        self.timeout = timeout
+        try:
+            self.sock = socket.create_connection((address, port), self.timeout)
+        except socket.error as err:
+            raise ClientError
 
-    def get(self, request_data):
+    def put(self, metric, value, timestamp=None):
+        
+        if not timestamp:
+            timestamp = int(time.time())
+
+        data = f"put {metric} {value} {timestamp}\n"
+        
+        try:
+            self.sock.sendall(data.encode('utf8'))
+        except (socket.error, socket.timeout) as e:
+            raise ClientError
+        
+        try:
+            server_response = self.sock.recv(1024).decode('utf-8')
+            
+            if not server_response:
+                raise ClientError
+            
+            if server_response.startswith('error'):
+                raise ClientError
+            
+        except socket.error:
+            raise ClientError
+        
+    def get(self, metric):
         """
         Метод get принимает в качестве параметра имя метрики, значения 
         которой мы хотим получить. В качестве имени метрики можно использовать 
-        символ «*», о котором мы упоминали в описании протокола.
+        символ «*»
 
-        Метод get возвращает словарь с метриками (смотрите пример ниже) в случае 
+        Метод get возвращает словарь с метриками в случае 
         успешного получения ответа от сервера и выбрасывает исключение 
         ClientError в случае не успешного.
 
@@ -80,28 +159,19 @@ class Client():
 
         #TODO: Проверить тело запроса, что оно не состоить из одного символа
         # переноса строки или просто какой-то палки, процента и всех таких
-
         
-        self.sock.sendall(request_data.encode('utf8'))
+        data = f"get {metric}\n"
+        self.sock.sendall(data.encode('utf8'))
         
-        while True:
-            try:
-                server_response = self.sock.recv(4096)
-                if not server_response:
-                    break
-            except socket.error as e:
-                print ('focking error')
-            return server_response.decode('utf-8')
-    
-    def put(self, metric_name, value, timestamp):
-        """
-        Метод put принимает в качестве параметров: название метрики, 
-        численное значение и необязательный именованный параметр timestamp. 
-        Если пользователь вызвал метод put без аргумента timestamp, 
-        то клиент автоматически должен подставить значение временной отметки, 
-        полученное с помощью вызова int(time.time()).
-
-        Метод put не возвращает ничего в случае успешной отправки и выбрасывает 
-        пользовательское исключение ClientError в случае не успешной.
-        """
-        pass
+        try:
+            server_response = self.sock.recv(1024)
+            
+            if not server_response:
+                raise ClientError('empty response from server')
+            else:
+                return server_response.decode('utf-8')
+            
+        except socket.error as e:
+            raise ClientError(f'focking error {e}')
+        
+        self.sock.close()
