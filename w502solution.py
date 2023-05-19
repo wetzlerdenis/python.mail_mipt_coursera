@@ -155,7 +155,7 @@ class Client():
             if not server_response:
                 raise ClientError
             else:
-                return server_response
+                return self._parse_response(server_response)
             
         except socket.error as e:
             raise ClientError
@@ -167,3 +167,23 @@ class Client():
 
         #TODO: Проверить тело запроса, что оно не состоить из одного символа
         # переноса строки
+
+    def _parse_response(self, data):
+        response = {}
+
+        try:
+            lines = data.split("\n")[1:-2]
+            for line in lines:
+                key, value, timestamp = line.split()
+
+                if key not in response:
+                    response[key] = []
+
+                response[key].append((int(timestamp), float(value)))
+            
+            for key in response:
+                response[key].sort(key=lambda x: x[0])
+
+        except (ValueError, IndexError):
+            raise ClientError
+        return response
