@@ -34,23 +34,6 @@ Client          <--     error\n<response>\n\n
 
 Examples:
 
-get palm.cpu\n  -->     Server
-Client          <--     ok\npalm.cpu 2.0 1150\npalm.cpu 0.5 1150\n\n
-
-get *\n         -->     Server
-Client          <--     ok\npalm.cpu 2.0 1150\npalm.cpu 0.5 1150\neardrum.cpu 3.0 1150\n\n
-
-get <unknown metric>        -->     Server
-Client                      <--     ok\n\n
-
-get нарушен формат запроса  -->     Server
-Client                      <--     error\nwrong command\n\n
-
-get ошибочная команда       -->     Server
-Client                      <--     error\nwrong command\n\n
-
-print(client.get("*"))
-
 Метод put принимает в качестве параметров: 
     - название метрики, 
     - численное значение 
@@ -71,6 +54,47 @@ Client                      <--     error\nwrong command\n\n
 Метод put не возвращает ничего в случае успешной отправки и выбрасывает 
 пользовательское исключение ClientError в случае не успешной.
 
+
+Метод get принимает в качестве параметра имя метрики или символ «*»
+Метод get возвращает словарь с метриками в случае успешного получения
+ответа от сервера и выбрасывает исключение ClientError в случае не успешного.
+
+Клиент получает данные от сервера в текстовом виде, метод get должен обработать 
+строку ответа и вернуть словарь с полученными ключами с сервера. Значением 
+ключей в словаре является список кортежей:
+[(timestamp1, metric_value1), (timestamp2, metric_value2), …]
+
+Значение timestamp и metric_value должны быть преобразованы соответственно 
+к типам int и float. Список должен быть отсортирован по значению timestamp 
+(по возрастанию).
+
+Пример возвращаемого значения при успешном вызове client.get("palm.cpu"):
+
+{
+    'palm.cpu': [
+        (1150864247, 0.5),
+        (1150864248, 0.5)
+        ]
+}
+Если в ответ на get-запрос сервер вернул положительный ответ "ok\n\n", 
+но без данных, то метод get клиента должен вернуть пустой словарь.
+
+get palm.cpu\n  -->     Server
+Client          <--     ok\npalm.cpu 2.0 1150\npalm.cpu 0.5 1150\n\n
+
+get *\n         -->     Server
+Client          <--     ok\npalm.cpu 2.0 1150\npalm.cpu 0.5 1150\neardrum.cpu 3.0 1150\n\n
+
+get <unknown metric>        -->     Server
+Client                      <--     ok\n\n
+
+get нарушен формат запроса  -->     Server
+Client                      <--     error\nwrong command\n\n
+
+get ошибочная команда       -->     Server
+Client                      <--     error\nwrong command\n\n
+
+print(client.get("*"))
 """
 import socket
 import time
@@ -79,6 +103,7 @@ class ClientError(Exception):
     pass
 
 class Client():
+
     def __init__(self, address, port, timeout=None):
         """
         Example: client = Client("127.0.0.1", 8888, timeout=15)
@@ -116,62 +141,29 @@ class Client():
             raise ClientError
         
     def get(self, metric):
-        """
-        Метод get принимает в качестве параметра имя метрики, значения 
-        которой мы хотим получить. В качестве имени метрики можно использовать 
-        символ «*»
-
-        Метод get возвращает словарь с метриками в случае 
-        успешного получения ответа от сервера и выбрасывает исключение 
-        ClientError в случае не успешного.
-
-        Клиент получает данные от сервера в текстовом виде, метод get 
-        должен обработать строку ответа и вернуть словарь с полученными ключами 
-        с сервера. Значением ключей в словаре является список кортежей:
-        [(timestamp1, metric_value1), (timestamp2, metric_value2), …]
-
-        Значение timestamp и metric_value должны быть преобразованы соответственно 
-        к типам int и float. 
-        Список должен быть отсортирован по значению timestamp (по возрастанию).
-
-        Пример возвращаемого значения при успешном вызове client.get("palm.cpu"):
-
-        {
-          'palm.cpu': [
-            (1150864247, 0.5),
-            (1150864248, 0.5)
-          ]
-        }
-
-        Если в параметре запроса переданы не валидные данные (например: 
-        - нарушен формат запроса, 
-        - ошибочная команда или 
-        - значения value и timestamp не могут быть приведены к необходимому типу) 
-        сервер отправляет строку со статусом ответа «error» и данными 
-        ответа «wrong command»:
-        error\nwrong command\n\n
-        """
-        
-        #TODO: проверить формат запроса на правильность, а именно наличие
-        # символа окончания строки \n в конце реквеста без пробела
-        # print(client.get("*"))
-        # pring(client.get("palm.cpu"))
-
-        #TODO: Проверить тело запроса, что оно не состоить из одного символа
-        # переноса строки или просто какой-то палки, процента и всех таких
         
         data = f"get {metric}\n"
-        self.sock.sendall(data.encode('utf8'))
+
+        try:
+            self.sock.sendall(data.encode('utf8'))
+        except (socket.error, socket.timeout) as e:
+            raise ClientError
         
         try:
-            server_response = self.sock.recv(1024)
+            server_response = self.sock.recv(1024).decode('utf-8')
             
             if not server_response:
-                raise ClientError('empty response from server')
+                raise ClientError
             else:
-                return server_response.decode('utf-8')
+                return server_response
             
         except socket.error as e:
-            raise ClientError(f'focking error {e}')
+            raise ClientError
         
         self.sock.close()
+
+        #TODO: проверить формат запроса на правильность, а именно наличие
+        # символа окончания строки \n в конце реквеста без пробела
+
+        #TODO: Проверить тело запроса, что оно не состоить из одного символа
+        # переноса строки
