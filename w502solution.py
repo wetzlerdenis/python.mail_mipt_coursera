@@ -136,7 +136,7 @@ class Client():
             
             if server_response.startswith('error'):
                 raise ClientError
-            
+                        
         except socket.error:
             raise ClientError
         
@@ -154,19 +154,15 @@ class Client():
             
             if not server_response:
                 raise ClientError
-            else:
+            elif server_response.startswith('ok\n'):
                 return self._parse_response(server_response)
+            else:
+                raise ClientError
             
         except socket.error as e:
             raise ClientError
         
         self.sock.close()
-
-        #TODO: проверить формат запроса на правильность, а именно наличие
-        # символа окончания строки \n в конце реквеста без пробела
-
-        #TODO: Проверить тело запроса, что оно не состоить из одного символа
-        # переноса строки
 
     def _parse_response(self, data):
         response = {}
