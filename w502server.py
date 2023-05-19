@@ -5,7 +5,7 @@
 import socket
 
 sock = socket.socket()
-sock.bind(('127.0.0.1', 8888))
+sock.bind(('127.0.0.1', 8889))
 sock.listen(1)
 conn, addr = sock.accept()
 
@@ -23,9 +23,11 @@ while True:
     request = data.decode('utf-8')
     print(f'Получен запрос:{ascii(request)}')
 
-    if request == 'palm.cpu\n':
+    if request == 'get palm.cpu\n':
         print(f'Отправлен ответ {ascii(response.decode("utf-8"))}')
         conn.send(response)
+    elif request == 'get xxx\n':
+        break
     else:
         print(f'Отправлен ответ {ascii(response_empty.decode("utf-8"))}')
         conn.send(response_empty)
