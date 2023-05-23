@@ -1,5 +1,5 @@
 import sys
-from client import Client, ClientError
+from w502teachers import Client, ClientError
 
 
 def run(host, port):
