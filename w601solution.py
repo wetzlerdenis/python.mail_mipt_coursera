@@ -3,7 +3,6 @@
 
 """
 Необходимо реализовать серверную часть.
-
 Требоания 
 1) По запросу put требуется сохранять метрики в структурах данных в памяти процесса. 
 2) По запросу get сервер обязан отдавать данные в правильной последовательности. 
@@ -17,7 +16,7 @@
 
 Пример tcp-сервера на asyncio:
 1) Данный код создает tcp-соединение для адреса 127.0.0.1:8181 
-2) слушает все входящие запросы. 
+2) слушает все входящие запросы
 3) При подключении клиента будет создан новый экземпляр класса ClientServerProtocol, 
 4) при поступлении новых данных вызовется метод объекта - data_received
 
@@ -28,6 +27,12 @@
 import asyncio
 
 class ClientServerProtocol(asyncio.Protocol):
+    def __init__(self):
+        self.storage = {}
+
+    def _save_data(self, data):
+        self.storage.append(data)
+
     def connection_made(self, transport):
         peername = transport.get_extra_info('peername')
         print('Connection from {}'.format(peername))
@@ -37,18 +42,18 @@ class ClientServerProtocol(asyncio.Protocol):
         messsage = data.decode()
         print('Received: ',messsage)
 
-        resp = process_data(messsage)
+        resp, metric = process_data(messsage)
 
         print('Send: ', resp)
         self.transport.write(resp.encode())
 
     def connection_lost(self, exc):
         return super().connection_lost(exc)
-    
-async def run_server(host,port):
+
+def run_server(host,port):
     loop = asyncio.get_event_loop()
-    
-    coro = await loop.create_server(
+
+    coro = loop.create_server(
         ClientServerProtocol,
         host,
         port
@@ -66,13 +71,24 @@ async def run_server(host,port):
         loop.close()
 
 def process_data(data):
-    response = {}
     request, payload = data.split(' ',1)
+    response = 'error\nwrong command\n\n'
 
     if request == 'get':
-        response = 'ok\n cpu 2\n'
-    elif request == 'put':
-        response = 'ok\n\n'
-    return response
+        response = 'ok'
 
-asyncio.run(run_server)
+    elif request == 'put':
+        key, value, timestamp = payload.split()
+
+        try:
+            value = int(value)
+            timestamp = float(timestamp)
+            response = 'ok'
+        except Exception as err:
+            print('cannot transform values')
+    else:
+        payload =''
+    
+    return response, payload
+
+run_server('127.0.0.1', 10001)
