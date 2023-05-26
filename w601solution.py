@@ -26,6 +26,32 @@
 
 import asyncio
 
+class Storage:
+    def __init__(self):
+        self.data = ''
+
+    def save(self, metric):
+        self.data += metric
+        print('storage increased ',self.data)
+
+    def extract(self, payload_key):
+        payload_key = payload_key.strip()
+        extract = ''
+
+        if not payload_key:
+            pass
+        elif payload_key == '*':
+            extract = self.data
+        else:
+            for line in self.data.splitlines()[:-1]:
+                key = line.split()[0]
+
+                if key == payload_key:
+                    extract += line
+        return extract
+
+storage = Storage()
+
 class ClientServerProtocol(asyncio.Protocol):
     def __init__(self):
         self.storage = ''
@@ -34,32 +60,12 @@ class ClientServerProtocol(asyncio.Protocol):
         peername = transport.get_extra_info('peername')
         print('Connection from {}'.format(peername))
         self.transport = transport
-
-    def _save_data(self, metric):
-        self.storage += metric
-        print('storage increased ',self.storage)
-
-    def _extract_metric(self, payload_key):
-        payload_key = payload_key.strip()
-        extract = ''
-
-        if not payload_key:
-            pass
-        elif payload_key == '*':
-            extract = self.storage
-        else:
-            for line in self.storage.splitlines()[:-1]:
-                key = line.split()[0]
-
-                if key == payload_key:
-                    extract += line
-        return extract
             
     def data_received(self, data):
         message = data.decode()
         print('Received: ',message)
 
-        resp = self.process_data(message)
+        resp = self.process_data(message, storage)
 
         print('Send: ', resp)
         self.transport.write(resp.encode())
@@ -67,7 +73,7 @@ class ClientServerProtocol(asyncio.Protocol):
     def connection_lost(self, exc):
         return super().connection_lost(exc)
 
-    def process_data(self, data):
+    def process_data(self, data, storage):
 
         response = 'error\nwrong command\n\n'
 
@@ -76,7 +82,7 @@ class ClientServerProtocol(asyncio.Protocol):
         if request == 'get' and len(payload.split()) == 1:
 
             response = 'ok\n' + \
-                self._extract_metric(payload_key=payload) + '\n'
+                storage.extract(payload_key=payload) + '\n'
 
         elif request == 'put':
             metric, value, timestamp = payload.split()
@@ -85,7 +91,7 @@ class ClientServerProtocol(asyncio.Protocol):
                 value = float(value)
                 timestamp = int(timestamp)
                 response = 'ok\n\n'
-                self._save_data(payload)
+                storage.save(payload)
             except Exception as err:
                 print('cannot transform values')
 
