@@ -27,23 +27,25 @@
 import asyncio
 
 class ClientServerProtocol(asyncio.Protocol):
+    def __init__(self):
+        self.storage = ''
 
     def connection_made(self, transport):
         peername = transport.get_extra_info('peername')
         print('Connection from {}'.format(peername))
         self.transport = transport
 
-    def save_data(self, metric):
-        try:
-            self.storage += metric
-        except NameError:
-            self.storage = ''
+    def _save_data(self, metric):
+        self.storage += metric
+        print('storage increased ',self.storage)
 
-    def extract_metric(self, payload_key):
-        payload_key = payload_key.strip()    
+    def _extract_metric(self, payload_key):
+        payload_key = payload_key.strip()
         extract = ''
 
-        if payload_key == '*':
+        if not payload_key:
+            pass
+        elif payload_key == '*':
             extract = self.storage
         else:
             for line in self.storage.splitlines()[:-1]:
@@ -54,17 +56,41 @@ class ClientServerProtocol(asyncio.Protocol):
         return extract
             
     def data_received(self, data):
-        messsage = data.decode()
-        print('Received: ',messsage)
+        message = data.decode()
+        print('Received: ',message)
 
-        resp, payload = process_data(messsage)
-        self.save_data(payload)
+        resp = self.process_data(message)
 
         print('Send: ', resp)
         self.transport.write(resp.encode())
 
     def connection_lost(self, exc):
         return super().connection_lost(exc)
+
+    def process_data(self, data):
+
+        response = 'error\nwrong command\n\n'
+
+        request, payload = data.split(' ',1)
+
+        if request == 'get' and len(payload.split()) == 1:
+
+            response = 'ok\n' + \
+                self._extract_metric(payload_key=payload) + '\n'
+
+        elif request == 'put':
+            metric, value, timestamp = payload.split()
+
+            try:
+                value = float(value)
+                timestamp = int(timestamp)
+                response = 'ok\n\n'
+                self._save_data(payload)
+            except Exception as err:
+                print('cannot transform values')
+
+        return response
+
 
 def run_server(host,port):
     loop = asyncio.get_event_loop()
@@ -85,28 +111,5 @@ def run_server(host,port):
         server.close()
         loop.run_until_complete(server.wait_closed())
         loop.close()
-
-def process_data(data):
-
-    response = 'error\nwrong command\n\n'
-    
-    request, payload = data.split(' ',1)
-    
-    if request == 'get':
-        response = 'ok\n\n'
-
-    elif request == 'put':
-        metric, value, timestamp = payload.split()
-
-        try:
-            value = int(value)
-            timestamp = float(timestamp)
-            response = 'ok\n\n'
-        except Exception as err:
-            print('cannot transform values')
-    else:
-        payload =''
-    
-    return response, payload
 
 run_server('127.0.0.1', 10001)
