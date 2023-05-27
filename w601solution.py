@@ -43,11 +43,11 @@ class Storage:
             last_timestamp = last_record.split()[2]
             
             if last_timestamp == timestamp:
-                print('replacing: ', last_record, ' to new: ', metric)
+                print('replacing: ', ascii(last_record), ' to new: ', ascii(metric))
                 self.data = self.data.replace(last_record, metric)
             else:
                 self.data += metric
-                print('storage increased ',self.data)
+                print('storage increased ',ascii(self.data))
         else:
             self.data += metric
             print('storage increased ',self.data)
@@ -77,11 +77,11 @@ class ClientServerProtocol(asyncio.Protocol):
             
     def data_received(self, data):
         message = data.decode()
-        print('Received: ',message)
+        print('Received: ',ascii(message))
 
         resp = self.process_data(message, storage)
 
-        print('Send: ', resp)
+        print('Send: ', ascii(resp))
         self.transport.write(resp.encode())
 
     def connection_lost(self, exc):
@@ -91,7 +91,11 @@ class ClientServerProtocol(asyncio.Protocol):
 
         response = 'error\nwrong command\n\n'
 
-        request, payload = data.split(' ',1)
+        #processing empty request like '\n'
+        try: 
+            request, payload = data.split(' ',1)
+        except ValueError:
+            request = payload = data.split()
 
         if request == 'get' and len(payload.split()) == 1:
 
