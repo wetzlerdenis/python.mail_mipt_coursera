@@ -31,8 +31,26 @@ class Storage:
         self.data = ''
 
     def save(self, metric):
-        self.data += metric
-        print('storage increased ',self.data)
+        name, value, timestamp = metric.split()
+
+        last_index = self.data.rfind(name)
+
+        print('last index ', last_index)
+
+        if last_index > 0:
+            last_eol = self.data.find('\n', last_index + 1)
+            last_record = self.data[last_index:last_eol]
+            last_timestamp = last_record.split()[2]
+            
+            if last_timestamp == timestamp:
+                print('replacing: ', last_record, ' to new: ', metric)
+                self.data = self.data.replace(last_record, metric)
+            else:
+                self.data += metric
+                print('storage increased ',self.data)
+        else:
+            self.data += metric
+            print('storage increased ',self.data)
 
     def extract(self, payload_key):
         payload_key = payload_key.strip()
@@ -47,7 +65,7 @@ class Storage:
                 key = line.split()[0]
 
                 if key == payload_key:
-                    extract += line
+                    extract += line + '\n'
         return extract
 
 storage = Storage()
