@@ -68,11 +68,7 @@ class Storage:
                     extract += line + '\n'
         return extract
 
-storage = Storage()
-
 class ClientServerProtocol(asyncio.Protocol):
-    def __init__(self):
-        self.storage = ''
 
     def connection_made(self, transport):
         peername = transport.get_extra_info('peername')
@@ -115,6 +111,7 @@ class ClientServerProtocol(asyncio.Protocol):
 
         return response
 
+storage = Storage()
 
 def run_server(host,port):
     loop = asyncio.get_event_loop()
@@ -135,5 +132,3 @@ def run_server(host,port):
         server.close()
         loop.run_until_complete(server.wait_closed())
         loop.close()
-
-run_server('127.0.0.1', 10001)
