@@ -30,42 +30,43 @@ class Storage:
     def __init__(self):
         self.data = ''
 
-    def save(self, metric):
-        name, value, timestamp = metric.split()
+    def find_last_record(self, key):
+        last_key_entry = self.data.rfind(key)
 
-        last_index = self.data.rfind(name)
-
-        print('last index ', last_index)
-
-        if last_index > 0:
-            last_eol = self.data.find('\n', last_index + 1)
-            last_record = self.data[last_index:last_eol]
-            last_timestamp = last_record.split()[2]
-            
-            if last_timestamp == timestamp:
-                print('replacing: ', ascii(last_record), ' to new: ', ascii(metric))
-                self.data = self.data.replace(last_record, metric)
-            else:
-                self.data += metric
-                print('storage increased ',ascii(self.data))
+        if last_key_entry > 0:    
+            eol            = self.data.find('\n', last_key_entry + 1)
+            last_record    = self.data[last_key_entry:eol]
+            last_timestamp = self.data[last_key_entry:eol].split()[2]
+            return last_record, last_timestamp
         else:
-            self.data += metric
-            print('storage increased ',self.data)
-
-    def extract(self, payload_key):
-        payload_key = payload_key.strip()
+            print('key is not found')
+            return -1, -1
+        
+    def find_all_records(self, key):
         extract = ''
+        for record in self.data.splitlines()[:-1]:
+            if key == record.split()[0]:
+                extract += record + '\n'
+        return extract 
 
-        if not payload_key:
+    def save(self, new_record):
+        key, value, new_timestamp = new_record.split()
+        old, t = self.find_last_record(key)
+        if t == new_timestamp:
+            self.data = self.data.replace(old, new_record)
+        else:
+            self.data += new_record
+        return self.data
+
+    def extract(self, key):
+        key = key.strip()
+        extract = ''
+        if not key:
             pass
-        elif payload_key == '*':
+        elif key == '*':
             extract = self.data
         else:
-            for line in self.data.splitlines()[:-1]:
-                key = line.split()[0]
-
-                if key == payload_key:
-                    extract += line + '\n'
+            extract = self.find_all_records(key)
         return extract
 
 class ClientServerProtocol(asyncio.Protocol):
@@ -88,32 +89,32 @@ class ClientServerProtocol(asyncio.Protocol):
         return super().connection_lost(exc)
 
     def process_data(self, data, storage):
+        err_response = 'error\nwrong command\n\n'
 
-        response = 'error\nwrong command\n\n'
-
-        #processing empty request like '\n'
-        try: 
+        try:
+            #processing empty request like '\n'
             request, payload = data.split(' ',1)
         except ValueError:
             request = payload = data.split()
+        
+        if request == 'get' and len(data.split()) == 2:
+            return 'ok\n' + storage.extract(key=payload) + '\n'
 
-        if request == 'get' and len(payload.split()) == 1:
-
-            response = 'ok\n' + \
-                storage.extract(payload_key=payload) + '\n'
-
-        elif request == 'put':
-            metric, value, timestamp = payload.split()
-
+        elif request == 'put' and len(data.split()) == 4:
+            value = payload.split()[1]
+            timestamp = payload.split()[2]
+            
             try:
                 value = float(value)
                 timestamp = int(timestamp)
-                response = 'ok\n\n'
-                storage.save(payload)
-            except Exception as err:
+            except ValueError:
                 print('cannot transform values')
-
-        return response
+                return err_response
+            
+            storage.save(new_record=payload)
+            return 'ok\n\n'
+        else:
+            return err_response
 
 storage = Storage()
 
