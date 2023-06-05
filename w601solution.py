@@ -26,6 +26,8 @@
 
 import asyncio
 
+err_response = 'error\nwrong command\n\n'
+ok_response = 'ok\n\n'
 stor = ''
 
 def find_last_record(key):
@@ -41,48 +43,19 @@ def find_last_record(key):
         print('key is not found')
         return -1, -1
 
+
 def find_all_records(key):
     extract = ''
-    print('starting looking into stor: ', stor)
+
     for record in stor.splitlines()[:-1]:
         if key == record.split()[0]:
-            print('key is found in stor, extracting...')
             extract += record + '\n'
-            print('extract added')
     
-    print('finally ready to extract: ', extract)
+    print('finally ready to extract:\n', extract)
     return extract 
 
-def save(new_record):
-    key, value, new_timestamp = new_record.split()
-    old, t = find_last_record(key)
-    if t == new_timestamp:
-        print('replacing record...')
-        stor = stor.replace(old, new_record)
-    else:
-        try:
-            print('trying to add new record...')
-            stor += new_record
-            print('saved new record, stor:', stor)
-        except NameError:
-            print('stor was not created')
-    return stor
-
-def extract(key):
-    key = key.strip()
-    # extract = ''
-    if not key:
-        pass
-    elif key == '*':
-        return stor
-    else:
-        return find_all_records(key)
-    # return extract
 
 def better_process_data(data):
-    err_response = 'error\nwrong command\n\n'
-    ok_response = 'ok\n\n'
-
     try:
         #processing empty request like '\n'
         request, payload = data.split(' ',1)
@@ -90,24 +63,63 @@ def better_process_data(data):
         request = payload = data.split()
     
     if request == 'get' and len(data.split()) == 2:
-        return 'ok\n' + extract(payload) + '\n'
-    
+        return process_get(payload)
     elif request == 'put' and len(data.split()) == 4:
-        value = payload.split()[1]
-        timestamp = payload.split()[2]
-        
-        try:
-            value = float(value)
-            timestamp = int(timestamp)
-        except ValueError:
-            print('cannot transform values')
-            return err_response
-        
-        save(payload)
+        return process_put(payload)
+    else: 
+        return err_response
+
+
+def process_get(payload):
+    payload = payload.strip()
+
+    if not payload:
+        pass
+    elif payload == '*':
+        return 'ok\n' + stor + '\n'
+    else:
+        return 'ok\n' + find_all_records(payload) + '\n'
+
+
+def process_put(payload):
+
+    new_value = payload.split()[1]
+    new_timestamp = payload.split()[2]
+
+    try:
+        value = float(new_value)
+        timestamp = int(new_timestamp)
+    except ValueError:
+        print('cannot transform values')
+        return err_response
+    else:
+        return save(payload)
+
+
+def save(payload):
+
+    key = payload.split()[0]
+    new_t = payload.split()[2]
+    global stor
+
+    old_record, old_t = find_last_record(key)
+
+    if old_t == new_t:
+        print('timestamps are equals, so replacing record...\n')
+        stor = stor.replace(old_record, payload)
+        print('replaced\n')
         return ok_response
     else:
-        return err_response
-    
+        print('timestamp is new, trying to add...stor is:', stor)
+        try:
+            stor += payload
+        except NameError:
+            print('stor was not created')
+            return err_response
+        else:
+            print('saved\n')
+            return ok_response
+
 
 class ClientServerProtocol(asyncio.Protocol):
 
@@ -120,7 +132,6 @@ class ClientServerProtocol(asyncio.Protocol):
         message = data.decode()
         print('Received: ',ascii(message))
 
-        # resp = self.process_data(message, stor)
         resp = better_process_data(message)
 
         print('Send: ', ascii(resp))
@@ -148,3 +159,6 @@ def run_server(host,port):
         server.close()
         loop.run_until_complete(server.wait_closed())
         loop.close()
+
+if __name__ == "__main__":
+    run_server("127.0.0.1", 10001)
