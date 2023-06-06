@@ -130,11 +130,11 @@ class ClientServerProtocol(asyncio.Protocol):
             
     def data_received(self, data):
         message = data.decode()
-        print('Received: ',ascii(message))
+        print('Received: ',message)
 
         resp = better_process_data(message)
 
-        print('Send: ', ascii(resp))
+        print('Send: ', resp)
         self.transport.write(resp.encode())
 
     def connection_lost(self, exc):
