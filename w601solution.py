@@ -30,31 +30,6 @@ err_response = 'error\nwrong command\n\n'
 ok_response = 'ok\n\n'
 stor = ''
 
-def find_last_record(key):
-    last_key_entry = stor.rfind(key)
-
-    if last_key_entry > 0:    
-        eol            = stor.find('\n', last_key_entry + 1)
-        last_record    = stor[last_key_entry:eol]
-        last_timestamp = stor[last_key_entry:eol].split()[2]
-        print('last record found: ', last_record)
-        return last_record, last_timestamp
-    else:
-        print('key is not found')
-        return -1, -1
-
-
-def find_all_records(key):
-    extract = ''
-
-    for record in stor.splitlines()[:-1]:
-        if key == record.split()[0]:
-            extract += record + '\n'
-    
-    print('finally ready to extract:\n', extract)
-    return extract 
-
-
 def better_process_data(data):
     try:
         #processing empty request like '\n'
@@ -81,6 +56,15 @@ def process_get(payload):
         return 'ok\n' + find_all_records(payload) + '\n'
 
 
+def find_all_records(key):
+    extract = ''
+    for record in stor.splitlines():
+        print('record: ',record)
+        if key == record.split()[0]:
+            extract += record + '\n'
+    return extract 
+
+
 def process_put(payload):
 
     new_value = payload.split()[1]
@@ -90,35 +74,35 @@ def process_put(payload):
         value = float(new_value)
         timestamp = int(new_timestamp)
     except ValueError:
-        print('cannot transform values')
         return err_response
     else:
-        return save(payload)
+        payload = payload.replace(new_value, str(float(new_value)))
+        return update_storage(payload)
 
 
-def save(payload):
-
+def update_storage(payload):
     key = payload.split()[0]
     new_t = payload.split()[2]
     global stor
 
-    old_record, old_t = find_last_record(key)
-
-    if old_t == new_t:
-        print('timestamps are equals, so replacing record...\n')
-        stor = stor.replace(old_record, payload)
-        print('replaced\n')
-        return ok_response
+    if stor.find(key) == -1:
+        stor += payload
     else:
-        print('timestamp is new, trying to add...stor is:', stor)
-        try:
+        b = 0
+        while stor.find(key, b) != -1:
+
+            a = stor.find(key, b)
+            b = stor.find('\n', a)
+            t = stor[a:b + 1].split()[2]
+
+            if t == new_t:
+                stor = stor.replace(stor[a:b], payload.strip())
+                break
+        
+        if t != new_t:
             stor += payload
-        except NameError:
-            print('stor was not created')
-            return err_response
-        else:
-            print('saved\n')
-            return ok_response
+
+    return ok_response
 
 
 class ClientServerProtocol(asyncio.Protocol):
